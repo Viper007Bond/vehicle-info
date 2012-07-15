@@ -1,0 +1,17 @@
+.vehicle-info-color-selector-preview {
+	-moz-border-radius: 4px;
+	-webkit-border-radius: 4px;
+	border-radius: 4px;
+	border: 1px solid #dfdfdf;
+	margin: 0 7px 0 3px;
+	padding: 4px 14px;
+	cursor: pointer;
+}
+
+.vehicle-info-color-selector-picker {
+	z-index: 100;
+	background: #eee;
+	border: 1px solid #ccc;
+	position: absolute;
+	display: none;
+}
