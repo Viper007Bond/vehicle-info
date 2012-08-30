@@ -39,7 +39,7 @@ TODO:
 
 **************************************************************************/
 
-add_action( 'init', 'vehicleinfo_initialize_cmb_meta_boxes', 9999 );
+add_action( 'admin_init', 'vehicleinfo_initialize_cmb_meta_boxes', 9999 );
 function vehicleinfo_initialize_cmb_meta_boxes() {
 	if ( ! class_exists( 'cmb_Meta_Box' ) ) {
 		require_once( __DIR__ . '/metabox/init.php' );
@@ -48,39 +48,180 @@ function vehicleinfo_initialize_cmb_meta_boxes() {
 
 class Vehicle_Info {
 
-	public $settings            = array();
-	public $labels              = array();
+	/** Constants *************************************************************/
 
-	public $chart_incrementor   = 0;
-	public $charts              = array();
+	/**
+	 * @var string Plugin version number.
+	 */
+	const VERSION            = '1.0';
 
-	public $import_attachment   = null;
-	public $import_data         = null;
+	/**
+	 * @var string The slug used for the WordPress Settings API.
+	 */
+	const SETTINGS_SLUG      = 'vehicleinfo';
 
-	# These private variables aren't really private due to __get() but they are read-only
+	/**
+	 * @var string The slug used for the WordPress option.
+	 */
+	const OPTION_NAME        = 'vehicleinfo';
 
-	private $version            = '1.0';
+	/**
+	 * @var string The fillup custom post type slug.
+	 */
+	const CPT_FILLUP         = 'vehicleinfo_fillup';
 
-	private $settings_slug      = 'vehicleinfo';
-	private $option_name        = 'vehicleinfo';
+	/**
+	 * @var string The service custom post type slug.
+	 */
+	const CPT_SERVICE        = 'vehicleinfo_service';
 
-	private $cpt_fillup         = 'vehicleinfo_fillup';
-	private $cpt_service        = 'vehicleinfo_service';
+	/**
+	 * @var string The vehicle custom taxonomy slug.
+	 */
+	const TAX_VEHICLE        = 'vehicleinfo_vehicle';
 
-	private $tax_vehicle        = 'vehicleinfo_vehicle';
-	private $tax_location       = 'vehicleinfo_location';
-	private $tax_fillup_type    = 'vehicleinfo_fillup_type';
-	private $tax_fuel_type      = 'vehicleinfo_fuel_type';
-	private $tax_fuel_brand     = 'vehicleinfo_fuel_brand';
-	private $tax_service_type   = 'vehicleinfo_service_type';
-	private $tax_payment_type   = 'vehicleinfo_payment_type';
+	/**
+	 * @var string The location custom taxonomy slug.
+	 */
+	const TAX_LOCATION       = 'vehicleinfo_location';
 
-	private $meta_odometer      = 'vehicleinfo_odometer';
-	private $meta_fuelunitprice = 'vehicleinfo_fuelunitprice';
-	private $meta_fuelunits     = 'vehicleinfo_fuelunits';
-	private $meta_cost          = 'vehicleinfo_cost';
+	/**
+	 * @var string The fillup type custom taxonomy slug.
+	 */
+	const TAX_FILLUP_TYPE    = 'vehicleinfo_fillup_type';
 
-	function __construct() {
+	/**
+	 * @var string The fuel type custom taxonomy slug.
+	 */
+	const TAX_FUEL_TYPE      = 'vehicleinfo_fuel_type';
+
+	/**
+	 * @var string The fuel brand custom taxonomy slug.
+	 */
+	const TAX_FUEL_BRAND     = 'vehicleinfo_fuel_brand';
+
+	/**
+	 * @var string The service type custom taxonomy slug.
+	 */
+	const TAX_SERVICE_TYPE   = 'vehicleinfo_service_type';
+
+	/**
+	 * @var string The payment type custom taxonomy slug.
+	 */
+	const TAX_PAYMENT_TYPE   = 'vehicleinfo_payment_type';
+
+	/**
+	 * @var string The odomoter reading meta data slug.
+	 */
+	const META_ODOMETER      = 'vehicleinfo_odometer';
+
+	/**
+	 * @var string The fuel unit price meta data slug.
+	 */
+	const META_FUELUNITPRICE = 'vehicleinfo_fuelunitprice';
+
+	/**
+	 * @var string The fuel units meta data slug.
+	 */
+	const META_FUELUNITS     = 'vehicleinfo_fuelunits';
+
+	/**
+	 * @var string The cost meta data slug.
+	 */
+	const META_COST          = 'vehicleinfo_cost';
+
+	/** Variables *************************************************************/
+
+	/**
+	 * @var string Post meta key for link URL.
+	 */
+	private $settings          = array();
+
+	/**
+	 * @var string Post meta key for link URL.
+	 */
+	private $labels            = array();
+
+	/**
+	 * @var string Post meta key for link URL.
+	 */
+	private $chart_incrementor = 0;
+
+	/**
+	 * @var string Post meta key for link URL.
+	 */
+	private $charts            = array();
+
+	/**
+	 * @var string Post meta key for link URL.
+	 */
+	private $import_attachment = null;
+
+	/**
+	 * @var string Post meta key for link URL.
+	 */
+	private $import_data       = null;
+
+	/** Singleton *************************************************************/
+
+	/**
+	 * @var Vehicle_Info Stores the instance of this class.
+	 */
+	private static $instance;
+
+	/**
+	 * Main Vehicle_Info Instance
+	 *
+	 * Insures that only one instance of Vehicle_Info exists in memory at any one time.
+	 *
+	 * @since Vehicle_Info 1.0
+	 * @staticvar array $instance
+	 * @uses Vehicle_Info::setup_globals() Setup the globals needed
+	 * @uses Vehicle_Info::includes() Include the required files
+	 * @uses Vehicle_Info::setup_actions() Setup the hooks and actions
+	 * @see vehicle_info()
+	 * @return The one true Vehicle_Info
+	 */
+	public static function instance() {
+		if ( ! isset( self::$instance ) ) {
+			self::$instance = new Vehicle_Info;
+			self::$instance->setup();
+		}
+		return self::$instance;
+	}
+
+	/** Magic Methods *********************************************************/
+
+	/**
+	 * A dummy constructor to prevent Vehicle_Info from being loaded more than once.
+	 *
+	 * @since Vehicle_Info 1.0
+	 * @see Vehicle_Info::instance()
+	 * @see Vehicle_Info();
+	 */
+	private function __construct() { /* Do nothing here */ }
+
+	/**
+	 * A dummy magic method to prevent Vehicle_Info from being cloned
+	 */
+	public function __clone() { wp_die( __( 'Cheatin’ uh?' ) ); }
+
+	/**
+	 * A dummy magic method to prevent Vehicle_Info from being unserialized
+	 */
+	public function __wakeup() { wp_die( __( 'Cheatin’ uh?' ) ); }
+
+	/** Private Methods *******************************************************/
+
+	/**
+	 * Set up all of the hooks
+	 *
+	 * @access private
+	 * @uses add_action() To add various actions
+	 * @uses add_filter() To add various filters
+	 * @uses add_shortcode() To register various shortcodes
+	 */
+	private function setup() {
 		add_action( 'init', array( &$this, 'action_init' ) );
 		add_action( 'wp_enqueue_scripts', array( &$this, 'register_scripts' ) );
 
@@ -90,12 +231,12 @@ class Vehicle_Info {
 
 		add_action( 'load-settings_page_vehicleinfo', array( &$this, 'maybe_process_upload_or_import' ) );
 
-		add_filter( 'manage_' . $this->cpt_fillup . '_posts_columns', array( &$this, 'fillup_columns_add' ) );
-		add_filter( 'manage_edit-' . $this->cpt_fillup . '_sortable_columns', array( &$this, 'fillup_columns_sortable' ) );
-		add_action( 'manage_' . $this->cpt_fillup . '_posts_custom_column', array( &$this, 'fillup_columns_values' ), 10, 2 );
+		add_filter( 'manage_' . self::CPT_FILLUP . '_posts_columns', array( &$this, 'fillup_columns_add' ) );
+		add_filter( 'manage_edit-' . self::CPT_FILLUP . '_sortable_columns', array( &$this, 'fillup_columns_sortable' ) );
+		add_action( 'manage_' . self::CPT_FILLUP . '_posts_custom_column', array( &$this, 'fillup_columns_values' ), 10, 2 );
 
 		add_filter( 'cmb_meta_boxes', array( &$this, 'register_cmb_meta_boxes' ) );
-		add_action( 'add_meta_boxes_' . $this->cpt_fillup, array( &$this, 'queue_fillup_screen_stuff' ) );
+		add_action( 'add_meta_boxes_' . self::CPT_FILLUP, array( &$this, 'queue_fillup_screen_stuff' ) );
 		add_action( 'add_meta_boxes', array( &$this, 'remove_default_taxonomy_meta_boxes' ) );
 
 		add_filter( 'cmb_render_vehicleinfo_taxonomy_select_default',   array( &$this, 'cmb_render_taxonomy_select_default' ), 10, 2 );
@@ -119,13 +260,11 @@ class Vehicle_Info {
 		add_shortcode( 'vehicleinfo_chart_fuel_prices', array( &$this, 'shortcode_chart_fuel_prices' ) );
 	}
 
-	function __get( $var ) {
-		return ( isset( $this->$var ) ) ? $this->$var : null;
-	}
+	/** Public Hook Callback Methods ******************************************/
 
 	public function action_init() {
 		// TODO: Labels for everything
-		register_post_type( $this->cpt_fillup, array(
+		register_post_type( self::CPT_FILLUP, array(
 			'labels' => array(
 				'name'          => 'Fuel Fill Ups',
 				'singular_name' => 'Fuel Fill Up',
@@ -142,48 +281,48 @@ class Vehicle_Info {
 			'exclude_from_search' => true,
 		) );
 
-		register_post_type( $this->cpt_service, array(
+		register_post_type( self::CPT_SERVICE, array(
 			'label' => 'Vehicle Services',
 			'public' => true,
 			'supports' => array( 'title', 'editor', 'custom-fields' ),
 		) );
 
 
-		register_taxonomy( $this->tax_vehicle, array( $this->cpt_fillup, $this->cpt_service ), array(
+		register_taxonomy( self::TAX_VEHICLE, array( self::CPT_FILLUP, self::CPT_SERVICE ), array(
 			'label' => 'Vehicles',
 			'hierarchical' => true,
 		) );
 
-		register_taxonomy( $this->tax_location, array( $this->cpt_fillup, $this->cpt_service ), array(
+		register_taxonomy( self::TAX_LOCATION, array( self::CPT_FILLUP, self::CPT_SERVICE ), array(
 			'hierarchical' => true,
 			'labels' => array(
 				'name' => 'Locations',
 			),
 		) );
 
-		register_taxonomy( $this->tax_fillup_type, $this->cpt_fillup, array(
+		register_taxonomy( self::TAX_FILLUP_TYPE, self::CPT_FILLUP, array(
 			'label' => 'Fillup Types',
 			'public' => false, // We only want the pre-defined types
 			'rewrite' => false,
 			'hierarchical' => true,
 		) );
 
-		register_taxonomy( $this->tax_fuel_type, $this->cpt_fillup, array(
+		register_taxonomy( self::TAX_FUEL_TYPE, self::CPT_FILLUP, array(
 			'label' => 'Fuel Types',
 			'hierarchical' => true,
 		) );
 
-		register_taxonomy( $this->tax_fuel_brand, $this->cpt_fillup, array(
+		register_taxonomy( self::TAX_FUEL_BRAND, self::CPT_FILLUP, array(
 			'label' => 'Fuel Brands',
 			'hierarchical' => true,
 		) );
 
-		register_taxonomy( $this->tax_service_type, $this->cpt_service, array(
+		register_taxonomy( self::TAX_SERVICE_TYPE, self::CPT_SERVICE, array(
 			'label' => 'Services',
 			'hierarchical' => true,
 		) );
 
-		register_taxonomy( $this->tax_payment_type, array( $this->cpt_fillup, $this->cpt_service ), array(
+		register_taxonomy( self::TAX_PAYMENT_TYPE, array( self::CPT_FILLUP, self::CPT_SERVICE ), array(
 			'label' => 'Payment Types',
 			'hierarchical' => true,
 		) );
@@ -195,14 +334,14 @@ class Vehicle_Info {
 			'reset'   => __( 'Reset',   'vehicle-info' ),
 		);
 		foreach ( $fillup_types as $slug => $name ) {
-			if ( ! get_term_by( 'slug', $slug, $this->tax_fillup_type ) ) {
-				wp_insert_term( $name, $this->tax_fillup_type, array(
+			if ( ! get_term_by( 'slug', $slug, self::TAX_FILLUP_TYPE ) ) {
+				wp_insert_term( $name, self::TAX_FILLUP_TYPE, array(
 					'slug' => $slug,
 				) );
 			}
 		}
 
-		$this->settings = wp_parse_args( (array) get_option( $this->option_name ), array(
+		$this->settings = wp_parse_args( (array) get_option( self::OPTION_NAME ), array(
 			'currency_symbol'           => _x( '$', 'your currency symbol', 'vehicle-info' ),
 			/* translators: This must be either exactly "before" or "after", untranslated and nothing else! */
 			'currency_symbol_placement' => _x( 'before', 'symbol placement location for this locale', 'vehicle-info' ),
@@ -247,27 +386,27 @@ class Vehicle_Info {
 
 	public function create_default_terms() {
 		$default_terms = array(
-			$this->tax_fuel_type => array(
+			self::TAX_FUEL_TYPE => array(
 				__( 'Regular',       'vehicle-info' ),
 				__( 'Plus',          'vehicle-info' ),
 				__( 'Premium',       'vehicle-info' ),
 				__( 'Diesel',        'vehicle-info' ),
 			),
-			$this->tax_fuel_brand => array(
+			self::TAX_FUEL_BRAND => array(
 				/*
 				__( 'Shell',         'vehicle-info' ),
 				__( 'Chevron',       'vehicle-info' ),
 				__( 'Arco',          'vehicle-info' ),
 				*/
 			),
-			$this->tax_payment_type => array(
+			self::TAX_PAYMENT_TYPE => array(
 				__( 'Cash',          'vehicle-info' ),
 				__( 'Debit',         'vehicle-info' ),
 				__( 'VISA',          'vehicle-info' ),
 				__( 'MasterCard',    'vehicle-info' ),
 				__( 'Discover',      'vehicle-info' ),
 			),
-			$this->tax_service_type => array(
+			self::TAX_SERVICE_TYPE => array(
 				__( 'Oil Change',    'vehicle-info' ),
 				__( 'Tune Up',       'vehicle-info' ),
 				__( 'Tire Rotation', 'vehicle-info' ),
@@ -283,13 +422,13 @@ class Vehicle_Info {
 	}
 
 	public function remove_default_taxonomy_meta_boxes() {
-		remove_meta_box( $this->tax_vehicle . 'div',      $this->cpt_fillup,  'side' );
-		remove_meta_box( $this->tax_vehicle . 'div',      $this->cpt_service, 'side' );
-		remove_meta_box( $this->tax_fuel_type . 'div',    $this->cpt_fillup,  'side' );
-		//remove_meta_box( $this->tax_fuel_brand . 'div',   $this->cpt_fillup,  'side' );
-		remove_meta_box( $this->tax_payment_type . 'div', $this->cpt_fillup,  'side' );
-		remove_meta_box( $this->tax_payment_type . 'div', $this->cpt_service, 'side' );
-		remove_meta_box( $this->tax_service_type . 'div', $this->cpt_service, 'side' );
+		remove_meta_box( self::TAX_VEHICLE . 'div',      self::CPT_FILLUP,  'side' );
+		remove_meta_box( self::TAX_VEHICLE . 'div',      self::CPT_SERVICE, 'side' );
+		remove_meta_box( self::TAX_FUEL_TYPE . 'div',    self::CPT_FILLUP,  'side' );
+		//remove_meta_box( self::TAX_FUEL_BRAND . 'div',   self::CPT_FILLUP,  'side' );
+		remove_meta_box( self::TAX_PAYMENT_TYPE . 'div', self::CPT_FILLUP,  'side' );
+		remove_meta_box( self::TAX_PAYMENT_TYPE . 'div', self::CPT_SERVICE, 'side' );
+		remove_meta_box( self::TAX_SERVICE_TYPE . 'div', self::CPT_SERVICE, 'side' );
 	}
 
 	public function fillup_columns_add( $columns ) {
@@ -297,17 +436,17 @@ class Vehicle_Info {
 		$date = $columns['date'];
 		unset( $columns['date'] );
 
-		$columns[$this->tax_vehicle]        = __( 'Vehicle', 'vehicle-info' );
-		$columns[$this->tax_fillup_type]    = __( 'Fillup Type', 'vehicle-info' );
-		$columns[$this->meta_odometer]      = __( 'Odometer', 'vehicle-info' );
-		$columns[$this->meta_fuelunitprice] = __( 'Unit Price', 'vehicle-info' );
-		$columns[$this->meta_fuelunits]     = ucwords( strtolower( $this->labels['volume_plural'] ) );
-		$columns[$this->meta_cost]          = __( 'Cost', 'vehicle-info' );
-		$columns[$this->tax_location]       = __( 'Location', 'vehicle-info' );
-		$columns[$this->tax_fuel_type]      = __( 'Fuel Type', 'vehicle-info' );
-		$columns[$this->tax_fuel_brand]     = __( 'Fuel Brand', 'vehicle-info' );
-		$columns[$this->tax_payment_type]   = __( 'Payment Type', 'vehicle-info' );
-		$columns['vehicleinfo_mileage']     = __( 'Mileage', 'vehicle-info' );
+		$columns[self::TAX_VEHICLE]        = __( 'Vehicle', 'vehicle-info' );
+		$columns[self::TAX_FILLUP_TYPE]    = __( 'Fillup Type', 'vehicle-info' );
+		$columns[self::META_ODOMETER]      = __( 'Odometer', 'vehicle-info' );
+		$columns[self::META_FUELUNITPRICE] = __( 'Unit Price', 'vehicle-info' );
+		$columns[self::META_FUELUNITS]     = ucwords( strtolower( $this->labels['volume_plural'] ) );
+		$columns[self::META_COST]          = __( 'Cost', 'vehicle-info' );
+		$columns[self::TAX_LOCATION]       = __( 'Location', 'vehicle-info' );
+		$columns[self::TAX_FUEL_TYPE]      = __( 'Fuel Type', 'vehicle-info' );
+		$columns[self::TAX_FUEL_BRAND]     = __( 'Fuel Brand', 'vehicle-info' );
+		$columns[self::TAX_PAYMENT_TYPE]   = __( 'Payment Type', 'vehicle-info' );
+		$columns['vehicleinfo_mileage']    = __( 'Mileage', 'vehicle-info' );
 
 		$columns['date'] = $date;
 
@@ -315,12 +454,12 @@ class Vehicle_Info {
 	}
 
 	public function fillup_columns_sortable( $sortable ) {
-		$sortable[$this->tax_vehicle]       = $this->tax_vehicle;
-		//$sortable[$this->tax_fillup_type]   = $this->tax_fillup_type;
-		$sortable[$this->tax_location]      = $this->tax_location;
-		//$sortable[$this->tax_fuel_type]     = $this->tax_fuel_type;
-		$sortable[$this->tax_fuel_brand]    = $this->tax_fuel_brand;
-		$sortable[$this->tax_payment_type]  = $this->tax_payment_type;
+		$sortable[self::TAX_VEHICLE]       = self::TAX_VEHICLE;
+		//$sortable[self::TAX_FILLUP_TYPE]   = self::TAX_FILLUP_TYPE;
+		$sortable[self::TAX_LOCATION]      = self::TAX_LOCATION;
+		//$sortable[self::TAX_FUEL_TYPE]     = self::TAX_FUEL_TYPE;
+		$sortable[self::TAX_FUEL_BRAND]    = self::TAX_FUEL_BRAND;
+		$sortable[self::TAX_PAYMENT_TYPE]  = self::TAX_PAYMENT_TYPE;
 
 		return $sortable;
 	}
@@ -331,27 +470,27 @@ class Vehicle_Info {
 		//var_export( $posts ); exit();
 
 		switch ( $column_name ) {
-			case $this->tax_vehicle:
-			case $this->tax_fillup_type:
-			case $this->tax_location:
-			case $this->tax_fuel_type:
-			case $this->tax_fuel_brand:
-			case $this->tax_payment_type:
+			case self::TAX_VEHICLE:
+			case self::TAX_FILLUP_TYPE:
+			case self::TAX_LOCATION:
+			case self::TAX_FUEL_TYPE:
+			case self::TAX_FUEL_BRAND:
+			case self::TAX_PAYMENT_TYPE:
 				if ( $term = $this->get_first_assigned_term( $post_ID, $column_name ) )
 					echo $term->name;
 
 				break;
 
-			case $this->meta_odometer:
+			case self::META_ODOMETER:
 				echo number_format_i18n( get_post_meta( $post_ID, $column_name, true ), 1 );
 				break;
 
-			case $this->meta_fuelunits:
+			case self::META_FUELUNITS:
 				echo number_format_i18n( get_post_meta( $post_ID, $column_name, true ), 2 );
 				break;
 
-			case $this->meta_fuelunitprice:
-			case $this->meta_cost:
+			case self::META_FUELUNITPRICE:
+			case self::META_COST:
 				echo $this->add_currency_symbol( get_post_meta( $post_ID, $column_name, true ) );
 				break;
 
@@ -378,7 +517,7 @@ class Vehicle_Info {
 		<script type="text/javascript">
 			jQuery(document).ready(function($){
 				$( "#vehicleinfo_fuelunitprice, #vehicleinfo_fuelunits" ).change( function() {
-					if ( $this->meta_fuelunitprice == $( this ).prop( "id" ) ) {
+					if ( self::META_FUELUNITPRICE == $( this ).prop( "id" ) ) {
 						var unitprice = $( this ).val();
 						var units     = $( "#vehicleinfo_fuelunits" ).val();
 					} else {
@@ -404,7 +543,7 @@ class Vehicle_Info {
 		$meta_boxes[] = array(
 			'id'         => 'cmb_vehicleinfo',
 			'title'      => 'Vehicle Information',
-			'pages'      => array( $this->cpt_fillup, $this->cpt_service ),
+			'pages'      => array( self::CPT_FILLUP, self::CPT_SERVICE ),
 			'context'    => 'normal',
 			'priority'   => 'high',
 			'show_names' => true,
@@ -412,15 +551,15 @@ class Vehicle_Info {
 				array(
 					'name'                 => 'Odometer Reading',
 					'desc'                 => 'No thousands separator!',
-					'id'                   => $this->meta_odometer,
+					'id'                   => self::META_ODOMETER,
 					'type'                 => 'text_small',
 					'vehicleinfo_validate' => 'number_float_nothousands', // Custom
 				),
 				array(
 					'name'                 => 'Vehicle',
-					'id'                   => $this->tax_vehicle,
+					'id'                   => self::TAX_VEHICLE,
 					'type'                 => 'vehicleinfo_taxonomy_select_default',
-					'taxonomy'             => $this->tax_vehicle,
+					'taxonomy'             => self::TAX_VEHICLE,
 				),
 			),
 		);
@@ -430,7 +569,7 @@ class Vehicle_Info {
 		$meta_boxes[] = array(
 			'id'         => 'cmb_vehicleinfo_fillup',
 			'title'      => 'Fill Up Details',
-			'pages'      => array( $this->cpt_fillup ),
+			'pages'      => array( self::CPT_FILLUP ),
 			'context'    => 'normal',
 			'priority'   => 'high',
 			'show_names' => true,
@@ -438,24 +577,24 @@ class Vehicle_Info {
 				array(
 					'name'                 => 'Fill Up Type',
 					'desc'                 => 'Did you fill the tank up or only partially? Select &quot;Reset&quot; if you forgot to enter a fill up and need to start over.',
-					'id'                   => $this->tax_fillup_type,
+					'id'                   => self::TAX_FILLUP_TYPE,
 					'type'                 => 'vehicleinfo_taxonomy_select_default',
-					'taxonomy'             => $this->tax_fillup_type,
-					'std'                  => ( $full = get_term_by( 'slug', 'full', $this->tax_fillup_type ) ) ? $full->term_id : null,
+					'taxonomy'             => self::TAX_FILLUP_TYPE,
+					'std'                  => ( $full = get_term_by( 'slug', 'full', self::TAX_FILLUP_TYPE ) ) ? $full->term_id : null,
 				),
 				array(
 					'name'                 => 'Fuel Type',
-					'id'                   => $this->tax_fuel_type,
+					'id'                   => self::TAX_FUEL_TYPE,
 					'type'                 => 'vehicleinfo_taxonomy_select_default',
-					'taxonomy'             => $this->tax_fuel_type,
-					//'std'                  => ( $regular = get_term_by( 'slug', 'regular', $this->tax_fuel_type ) ) ? $regular->term_id : null,
+					'taxonomy'             => self::TAX_FUEL_TYPE,
+					//'std'                  => ( $regular = get_term_by( 'slug', 'regular', self::TAX_FUEL_TYPE ) ) ? $regular->term_id : null,
 				),
 				array(
 					'name'                 => 'Payment Type',
-					'desc'                 => sprintf( 'Add new types from the <a href="%s">edit payment types page</a>', esc_url( admin_url( 'edit-tags.php?taxonomy=vehicleinfo_payment_type&post_type=' . $this->cpt_fillup ) ) ),
-					'id'                   => $this->tax_payment_type,
+					'desc'                 => sprintf( 'Add new types from the <a href="%s">edit payment types page</a>', esc_url( admin_url( 'edit-tags.php?taxonomy=vehicleinfo_payment_type&post_type=' . self::CPT_FILLUP ) ) ),
+					'id'                   => self::TAX_PAYMENT_TYPE,
 					'type'                 => 'vehicleinfo_taxonomy_select_default',
-					'taxonomy'             => $this->tax_payment_type,
+					'taxonomy'             => self::TAX_PAYMENT_TYPE,
 				),
 				array(
 					'desc'                 => "You only need to enter data into 2 of the 3 following fields. The third value can be calculated. Don't enter any thousands separators!",
@@ -466,19 +605,19 @@ class Vehicle_Info {
 					'name'                 => 'Cost per Fuel Unit',
 					'desc'                 => esc_html( sprintf( __( 'As in %1$s per %2$s', 'fuel unit price example', 'vehicle-info' ), $this->add_currency_symbol( '4.50' ), $this->labels['volume_singular'] ) ),
 
-					'id'                   => $this->meta_fuelunitprice,
+					'id'                   => self::META_FUELUNITPRICE,
 					'type'                 => 'vehicleinfo_text_money',
 				),
 				array(
 					'name'                 => 'Units of Fuel',
 					'desc'                 => sprintf( __( 'How many %s did you buy?', 'vehicle-info' ), $this->labels['volume_plural'] ),
-					'id'                   => $this->meta_fuelunits,
+					'id'                   => self::META_FUELUNITS,
 					'type'                 => 'text_small',
 					'vehicleinfo_validate' => 'number_float_nothousands', // Custom
 				),
 				array(
 					'name'                 => 'Total Cost',
-					'id'                   => $this->meta_cost,
+					'id'                   => self::META_COST,
 					'type'                 => 'vehicleinfo_text_money',
 				),
 			),
@@ -575,8 +714,8 @@ class Vehicle_Info {
 
 		// If this is the total cost and both units and unit price is filled out,
 		// then discard the user entered cost and calculate it again so it's always correct.
-		if ( $this->meta_cost == $field['id'] && ! empty( $_POST[$this->meta_fuelunitprice] ) && ! empty( $_POST[$this->meta_fuelunits] ) ) {
-			$value = $this->float_nothousands( $_POST[$this->meta_fuelunitprice] ) * $this->float_nothousands( $_POST[$this->meta_fuelunits] );
+		if ( self::META_COST == $field['id'] && ! empty( $_POST[self::META_FUELUNITPRICE] ) && ! empty( $_POST[self::META_FUELUNITS] ) ) {
+			$value = $this->float_nothousands( $_POST[self::META_FUELUNITPRICE] ) * $this->float_nothousands( $_POST[self::META_FUELUNITS] );
 			$value = sprintf( '%01.2f', $value );
 		}
 
@@ -587,7 +726,7 @@ class Vehicle_Info {
 		if ( ! $post = get_post( $post_ID ) )
 			return;
 
-		if ( $this->cpt_fillup != $post->post_type )
+		if ( self::CPT_FILLUP != $post->post_type )
 			return;
 
 		$update_post = array();
@@ -607,18 +746,18 @@ class Vehicle_Info {
 	}
 
 	public function register_settings() {
-		register_setting( $this->option_name, $this->option_name, array( &$this, 'settings_validate' ) );
+		register_setting( self::OPTION_NAME, self::OPTION_NAME, array( &$this, 'settings_validate' ) );
 	}
 
 	public function register_settings_page() {
-		$hook_suffix = add_options_page( 'Vehicle Info', 'Vehicle Info', 'manage_options', $this->settings_slug, array( &$this, 'settings_page' ) );
+		$hook_suffix = add_options_page( 'Vehicle Info', 'Vehicle Info', 'manage_options', self::SETTINGS_SLUG, array( &$this, 'settings_page' ) );
 
 		add_action( "admin_print_styles-$hook_suffix", array( &$this, 'enqueue_settings_page_scripts_and_styles' ) );
 	}
 
 	public function enqueue_settings_page_scripts_and_styles() {
-		wp_enqueue_style(  'vehicle-info-settings-page', plugins_url( 'settings-page.css', __FILE__ ), false, $this->version );
-		wp_enqueue_script( 'vehicle-info-settings-page', plugins_url( 'settings-page.js',  __FILE__ ), array( 'farbtastic' ), $this->version );
+		wp_enqueue_style(  'vehicle-info-settings-page', plugins_url( 'settings-page.css', __FILE__ ), false, self::VERSION );
+		wp_enqueue_script( 'vehicle-info-settings-page', plugins_url( 'settings-page.js',  __FILE__ ), array( 'farbtastic' ), self::VERSION );
 		wp_enqueue_style( 'farbtastic' );
 	}
 
@@ -646,7 +785,7 @@ class Vehicle_Info {
 			foreach ( $vehicles as $key => $vehicle ) {
 				add_settings_field(
 					"vehicleinfo_import_map_vehicle_{$key}", $vehicle, array( &$this, 'settings_field_import_map' ), 'vehicleinfo_import_map', 'vehicleinfo_import_map_vehicles', array(
-						'taxonomy' => $this->tax_vehicle,
+						'taxonomy' => self::TAX_VEHICLE,
 						'new_text' => __( '&mdash; Create As New Vehicle &mdash;', 'vehicle-info' ),
 						'id'       => $key,
 						'value'    => $vehicle,
@@ -660,7 +799,7 @@ class Vehicle_Info {
 				foreach ( $fuel_types as $key => $fuel_type ) {
 					add_settings_field(
 						"vehicleinfo_import_map_fuel_type_{$key}", $fuel_type, array( &$this, 'settings_field_import_map' ), 'vehicleinfo_import_map', 'vehicleinfo_import_map_fuel_types', array(
-							'taxonomy' => $this->tax_fuel_type,
+							'taxonomy' => self::TAX_FUEL_TYPE,
 							'new_text' => __( '&mdash; Create As New Fuel Type &mdash;', 'vehicle-info' ),
 							'id'       => $key,
 							'value'    => $fuel_type,
@@ -675,7 +814,7 @@ class Vehicle_Info {
 				foreach ( $fuel_brands as $key => $fuel_brand ) {
 					add_settings_field(
 						"vehicleinfo_import_map_fuel_brand_{$key}", $fuel_brand, array( &$this, 'settings_field_import_map' ), 'vehicleinfo_import_map', 'vehicleinfo_import_map_fuel_brands', array(
-							'taxonomy' => $this->tax_fuel_brand,
+							'taxonomy' => self::TAX_FUEL_BRAND,
 							'new_text' => __( '&mdash; Create As New Fuel Brand &mdash;', 'vehicle-info' ),
 							'id'       => $key,
 							'value'    => $fuel_brand,
@@ -690,7 +829,7 @@ class Vehicle_Info {
 				foreach ( $locations as $key => $location ) {
 					add_settings_field(
 						"vehicleinfo_import_map_location_{$key}", $location, array( &$this, 'settings_field_import_map' ), 'vehicleinfo_import_map', 'vehicleinfo_import_map_locations', array(
-							'taxonomy' => $this->tax_location,
+							'taxonomy' => self::TAX_LOCATION,
 							'new_text' => __( '&mdash; Create As New Location &mdash;', 'vehicle-info' ),
 							'id'       => $key,
 							'value'    => $location,
@@ -705,7 +844,7 @@ class Vehicle_Info {
 				foreach ( $payment_types as $key => $payment_type ) {
 					add_settings_field(
 						"vehicleinfo_import_map_payment_type_{$key}", $payment_type, array( &$this, 'settings_field_import_map' ), 'vehicleinfo_import_map', 'vehicleinfo_import_map_payment_types', array(
-							'taxonomy' => $this->tax_payment_type,
+							'taxonomy' => self::TAX_PAYMENT_TYPE,
 							'new_text' => __( '&mdash; Create As New Payment Type &mdash;', 'vehicle-info' ),
 							'id'       => $key,
 							'value'    => $payment_type,
@@ -806,7 +945,7 @@ class Vehicle_Info {
 
 		<?php
 			// Come back here for step 2 (handled above)
-			wp_import_upload_form( admin_url( 'options-general.php?page=' . $this->settings_slug ) );
+			wp_import_upload_form( admin_url( 'options-general.php?page=' . self::SETTINGS_SLUG ) );
 		?>
 <?php
 
@@ -917,7 +1056,7 @@ class Vehicle_Info {
 
 	public function guess_import_map( $args ) {
 		switch ( $args['taxonomy'] ) {
-			case $this->tax_fuel_type:
+			case self::TAX_FUEL_TYPE:
 				switch ( $args['value'] ) {
 					case '87':
 						$slug = 'regular';
@@ -1083,11 +1222,11 @@ class Vehicle_Info {
 
 			switch ( $entry['Type'] ) {
 				case 'Gas':
-					$post_type = $this->cpt_fillup;
+					$post_type = self::CPT_FILLUP;
 					break;
 
 				case 'Service':
-					$post_type = $this->cpt_service;
+					$post_type = self::CPT_SERVICE;
 					break;
 
 				// Unknown type, skip it
@@ -1129,25 +1268,25 @@ class Vehicle_Info {
 			if ( ! empty( $entry['Notes'] ) )
 				$post_data['post_content'] = $entry['Notes'];
 
-			if ( $vehicle_term_id = $this->import_get_mapping_result( $import_data, $entry, 'Vehicle', $this->tax_vehicle ) )
-				$post_data['tax_input'][$this->tax_vehicle] = array( $vehicle_term_id );
+			if ( $vehicle_term_id = $this->import_get_mapping_result( $import_data, $entry, 'Vehicle', self::TAX_VEHICLE ) )
+				$post_data['tax_input'][self::TAX_VEHICLE] = array( $vehicle_term_id );
 
-			if ( $location_term_id = $this->import_get_mapping_result( $import_data, $entry, 'Location', $this->tax_location ) )
-				$post_data['tax_input'][$this->tax_location] = array( $location_term_id );
+			if ( $location_term_id = $this->import_get_mapping_result( $import_data, $entry, 'Location', self::TAX_LOCATION ) )
+				$post_data['tax_input'][self::TAX_LOCATION] = array( $location_term_id );
 
 
 			if ( 'Gas' == $entry['Type'] ) {
 
 				$post_data['post_title'] = 'Fuel Fill Up';
 
-				if ( $fuel_type_term_id = $this->import_get_mapping_result( $import_data, $entry, 'Octane', $this->tax_fuel_type ) )
-					$post_data['tax_input'][$this->tax_fuel_type] = array( $fuel_type_term_id );
+				if ( $fuel_type_term_id = $this->import_get_mapping_result( $import_data, $entry, 'Octane', self::TAX_FUEL_TYPE ) )
+					$post_data['tax_input'][self::TAX_FUEL_TYPE] = array( $fuel_type_term_id );
 
-				if ( $fuel_brand_term_id = $this->import_get_mapping_result( $import_data, $entry, 'Gas Brand', $this->tax_fuel_brand ) )
-					$post_data['tax_input'][$this->tax_fuel_brand] = array( $fuel_brand_term_id );
+				if ( $fuel_brand_term_id = $this->import_get_mapping_result( $import_data, $entry, 'Gas Brand', self::TAX_FUEL_BRAND ) )
+					$post_data['tax_input'][self::TAX_FUEL_BRAND] = array( $fuel_brand_term_id );
 
-				if ( $payment_type_term_id = $this->import_get_mapping_result( $import_data, $entry, 'Payment Type', $this->tax_payment_type ) )
-					$post_data['tax_input'][$this->tax_payment_type] = array( $payment_type_term_id );
+				if ( $payment_type_term_id = $this->import_get_mapping_result( $import_data, $entry, 'Payment Type', self::TAX_PAYMENT_TYPE ) )
+					$post_data['tax_input'][self::TAX_PAYMENT_TYPE] = array( $payment_type_term_id );
 
 				// Only pre-defined terms for this taxonomy
 				if ( ! empty( $entry['Filled Up'] ) ) {
@@ -1168,8 +1307,8 @@ class Vehicle_Info {
 					}
 
 					if ( $slug ) {
-						if ( $term = get_term_by( 'slug', $slug, $this->tax_fillup_type ) ) {
-							$post_data['tax_input'][$this->tax_fillup_type] = array( $term->term_id );
+						if ( $term = get_term_by( 'slug', $slug, self::TAX_FILLUP_TYPE ) ) {
+							$post_data['tax_input'][self::TAX_FILLUP_TYPE] = array( $term->term_id );
 						}
 					}
 				}
@@ -1179,14 +1318,14 @@ class Vehicle_Info {
 
 
 				if ( ! empty( $entry['Cost/Gallon'] ) )
-					update_post_meta( $post_ID, $this->meta_fuelunitprice, $this->float_nothousands( $entry['Cost/Gallon'] ) );
+					update_post_meta( $post_ID, self::META_FUELUNITPRICE, $this->float_nothousands( $entry['Cost/Gallon'] ) );
 				elseif ( ! empty( $entry['Cost/Liter'] ) )
-					update_post_meta( $post_ID, $this->meta_fuelunitprice, $this->float_nothousands( $entry['Cost/Liter'] ) );
+					update_post_meta( $post_ID, self::META_FUELUNITPRICE, $this->float_nothousands( $entry['Cost/Liter'] ) );
 
 				if ( ! empty( $entry['Gallons'] ) )
-					update_post_meta( $post_ID, $this->meta_fuelunits, $this->float_nothousands( $entry['Gallons'] ) );
+					update_post_meta( $post_ID, self::META_FUELUNITS, $this->float_nothousands( $entry['Gallons'] ) );
 				elseif ( ! empty( $entry['Liters'] ) )
-					update_post_meta( $post_ID, $this->meta_fuelunits, $this->float_nothousands( $entry['Liters'] ) );
+					update_post_meta( $post_ID, self::META_FUELUNITS, $this->float_nothousands( $entry['Liters'] ) );
 			}
 
 			elseif ( 'Service' == $entry['Type'] ) {
@@ -1197,10 +1336,10 @@ class Vehicle_Info {
 			}
 
 			if ( ! empty( $entry['Odometer'] ) )
-				update_post_meta( $post_ID, $this->meta_odometer, $this->human_to_float( $entry['Odometer'] ) );
+				update_post_meta( $post_ID, self::META_ODOMETER, $this->human_to_float( $entry['Odometer'] ) );
 
 			if ( ! empty( $entry['Total Cost'] ) )
-				update_post_meta( $post_ID, $this->meta_cost, $this->float_nothousands( $entry['Total Cost'] ) );
+				update_post_meta( $post_ID, self::META_COST, $this->float_nothousands( $entry['Total Cost'] ) );
 
 			$results['imported']++;
 		}
@@ -1303,15 +1442,15 @@ class Vehicle_Info {
 
 		switch ( $entry_type ) {
 			case 'fillup':
-				$query_args['post_type'] = $this->cpt_fillup;
+				$query_args['post_type'] = self::CPT_FILLUP;
 				break;
 
 			case 'service':
-				$query_args['post_type'] = $this->cpt_service;
+				$query_args['post_type'] = self::CPT_SERVICE;
 				break;
 
 			default:
-				$query_args['post_type'] = array( $this->cpt_fillup, $this->cpt_service );
+				$query_args['post_type'] = array( self::CPT_FILLUP, self::CPT_SERVICE );
 		}
 
 		if ( ! empty( $vehicle ) ) {
@@ -1346,7 +1485,7 @@ class Vehicle_Info {
 
 	public function get_post_meta_max_minus_min( $meta_key, $vehicle = null ) {
 		$query_args = array(
-			'post_type'      => array( $this->cpt_fillup, $this->cpt_service ),
+			'post_type'      => array( self::CPT_FILLUP, self::CPT_SERVICE ),
 			'meta_key'       => $meta_key, // For ordering
 			'orderby'        => 'meta_value_num',
 			'order'          => 'DESC',
@@ -1400,7 +1539,7 @@ class Vehicle_Info {
 				if ( empty( $vehicle ) )
 					return new WP_Error( 'vinfo_missing_vehicle', sprintf( __( 'Missing %s parameter. You need to pass the slug of a vehicle entry.', 'vehicle-info' ), '<code>vehicle</code>' ) );
 
-				$meta_key = $this->meta_odometer;
+				$meta_key = self::META_ODOMETER;
 				$type = 'maxmin';
 
 				if ( is_null( $decimals ) )
@@ -1413,7 +1552,7 @@ class Vehicle_Info {
 			case 'dollar':
 			case 'euros':
 			case 'euro':
-				$meta_key = $this->meta_cost;
+				$meta_key = self::META_COST;
 				$type = 'total';
 
 				if ( is_null( $decimals ) )
@@ -1425,7 +1564,7 @@ class Vehicle_Info {
 			case 'gallon':
 			case 'liters':
 			case 'liter':
-				$meta_key = $this->meta_fuelunits;
+				$meta_key = self::META_FUELUNITS;
 				$type = 'total';
 
 				if ( is_null( $decimals ) )
@@ -1455,7 +1594,7 @@ class Vehicle_Info {
 
 	public function get_vehicle_tax_query( $vehicle ) {
 		if ( ! is_object( $vehicle ) ) {
-			if ( ! $vehicle = get_term_by( 'slug', $vehicle, $this->tax_vehicle ) ) {
+			if ( ! $vehicle = get_term_by( 'slug', $vehicle, self::TAX_VEHICLE ) ) {
 				return false;
 			}
 		}
@@ -1465,7 +1604,7 @@ class Vehicle_Info {
 
 		$tax_query = array(
 			array(
-				'taxonomy' => $this->tax_vehicle,
+				'taxonomy' => self::TAX_VEHICLE,
 				'field'    => 'id',
 				'terms'    => array( $vehicle->term_id ),
 			),
@@ -1511,7 +1650,7 @@ class Vehicle_Info {
 
 		/*
 		foreach ( $fillups as $fillup )
-			var_dump( $this->get_first_assigned_term( $fillup, $this->tax_vehicle )->name );
+			var_dump( $this->get_first_assigned_term( $fillup, self::TAX_VEHICLE )->name );
 		var_dump( '--------' );
 		/**/
 
@@ -1521,21 +1660,21 @@ class Vehicle_Info {
 		if ( empty( $fillups[$key] ) )
 			return false;//'bad key';
 
-		if ( ! $this_distance = get_post_meta( $fillups[$key]->ID, $this->meta_odometer, true ) )
+		if ( ! $this_distance = get_post_meta( $fillups[$key]->ID, self::META_ODOMETER, true ) )
 			return false;//'unknown odometer reading for this';
 
-		if ( ! $this_fillup_type = $this->get_first_assigned_term( $fillups[$key], $this->tax_fillup_type ) )
+		if ( ! $this_fillup_type = $this->get_first_assigned_term( $fillups[$key], self::TAX_FILLUP_TYPE ) )
 			return false;//'unknown fillup type';
 
 		if ( 'full' != $this_fillup_type->slug )
 			return false;//'bad fillup type ' . $this_fillup_type->slug;
 
-		if ( ! $this_vehicle = $this->get_first_assigned_term( $fillups[$key], $this->tax_vehicle ) )
+		if ( ! $this_vehicle = $this->get_first_assigned_term( $fillups[$key], self::TAX_VEHICLE ) )
 			return false;//'unknown vehicle';
 
 		//var_dump( $this_vehicle );
 
-		if ( ! $units = get_post_meta( $fillups[$key]->ID, $this->meta_fuelunits, true ) )
+		if ( ! $units = get_post_meta( $fillups[$key]->ID, self::META_FUELUNITS, true ) )
 			return false;//'no units for this fillup';
 
 		//var_dump( "we added $units this current fillup" );
@@ -1552,16 +1691,16 @@ class Vehicle_Info {
 
 			//var_dump( 'checking ' . $previous_fillup->ID );
 
-			if ( ! $previous_distance = get_post_meta( $previous_fillup->ID, $this->meta_odometer, true ) )
+			if ( ! $previous_distance = get_post_meta( $previous_fillup->ID, self::META_ODOMETER, true ) )
 				return false;//'unknown odometer reading for this';
 
-			$previous_vehicle = $this->get_first_assigned_term( $previous_fillup, $this->tax_vehicle );
+			$previous_vehicle = $this->get_first_assigned_term( $previous_fillup, self::TAX_VEHICLE );
 			if ( $previous_vehicle->term_id != $this_vehicle->term_id ) {
 				//var_dump( 'skipped ' . $previous_vehicle->name );
 				continue;
 			}
 
-			if ( ! $previous_fillup_type = $this->get_first_assigned_term( $previous_fillup, $this->tax_fillup_type ) ) {
+			if ( ! $previous_fillup_type = $this->get_first_assigned_term( $previous_fillup, self::TAX_FILLUP_TYPE ) ) {
 				//var_dump( 'failed to get fillup type for ' . $previous_fillup->ID );
 				continue;
 			}
@@ -1573,8 +1712,8 @@ class Vehicle_Info {
 
 				// Record the units added in the previous partial fillup and keep going
 				case 'partial':
-					$units = $units + get_post_meta( $previous_fillup->ID, $this->meta_fuelunits, true );
-					//var_dump( 'it was a partial, skipping but adding this many units: ' . get_post_meta( $previous_fillup->ID, $this->meta_fuelunits, true ) );
+					$units = $units + get_post_meta( $previous_fillup->ID, self::META_FUELUNITS, true );
+					//var_dump( 'it was a partial, skipping but adding this many units: ' . get_post_meta( $previous_fillup->ID, self::META_FUELUNITS, true ) );
 					continue 2;
 
 				// We ran across a reset, abort everything
@@ -1627,7 +1766,7 @@ class Vehicle_Info {
 			return $this->return_error( sprintf( __( 'No vehicle with the slug %s could be found.', 'vehicle-info' ), '<code>' . esc_html( $vehicle ) . '</code>' ) );
 
 		$fillups = new WP_Query( array(
-			'post_type' => $this->cpt_fillup,
+			'post_type' => self::CPT_FILLUP,
 			'posts_per_page' => $atts['number'],
 			'tax_query' => $tax_query,
 		) );
@@ -1702,12 +1841,12 @@ class Vehicle_Info {
 
 	public function shortcode_chart_distance( $atts ) {
 		$query_args = array(
-			'post_type'      => array( $this->cpt_fillup, $this->cpt_service ),
+			'post_type'      => array( self::CPT_FILLUP, self::CPT_SERVICE ),
 			'posts_per_page' => -1,
 			'meta_query'     => array(
 				// Exclude zero mileage entries
 				array(
-					'key'     => $this->meta_odometer,
+					'key'     => self::META_ODOMETER,
 					'value'   => 0,
 					'type'    => 'numeric',
 					'compare' => '>'
@@ -1718,7 +1857,7 @@ class Vehicle_Info {
 		);
 
 		if ( ! empty( $atts['vehicle'] ) ) {
-			if ( ! $vehicle = get_term_by( 'slug', $atts['vehicle'], $this->tax_vehicle ) ) {
+			if ( ! $vehicle = get_term_by( 'slug', $atts['vehicle'], self::TAX_VEHICLE ) ) {
 				return $this->return_error( sprintf( __( 'No vehicle with the slug %s could be found.', 'vehicle-info' ), '<code>' . esc_html( $atts['vehicle'] ) . '</code>' ) );
 			}
 
@@ -1733,7 +1872,7 @@ class Vehicle_Info {
 		if ( ! empty( $atts['vehicle'] ) ) {
 			$vehicles[] = $vehicle;
 		} else {
-			$vehicles = $this->get_terms_for_posts( $entries->posts, $this->tax_vehicle );
+			$vehicles = $this->get_terms_for_posts( $entries->posts, self::TAX_VEHICLE );
 		}
 
 		$columns = array(
@@ -1753,7 +1892,7 @@ class Vehicle_Info {
 
 		$rows = array();
 		foreach ( $entries->posts as $key => $entry ) {
-			if ( ! $entry_vehicle = $this->get_first_assigned_term( $entry, $this->tax_vehicle ) )
+			if ( ! $entry_vehicle = $this->get_first_assigned_term( $entry, self::TAX_VEHICLE ) )
 				continue;
 
 			$data = array(
@@ -1764,7 +1903,7 @@ class Vehicle_Info {
 			);
 
 			foreach ( $vehicles as $vehicle ) {
-				if ( $vehicle->term_id === $entry_vehicle->term_id && $odometer = (float) get_post_meta( $entry->ID, $this->meta_odometer, true ) ) {
+				if ( $vehicle->term_id === $entry_vehicle->term_id && $odometer = (float) get_post_meta( $entry->ID, self::META_ODOMETER, true ) ) {
 					$data[] = array(
 						'v' => $odometer,
 						'f' => number_format_i18n( $odometer, 1 ) . ' ' . $this->labels['distance_plural'],
@@ -1787,12 +1926,12 @@ class Vehicle_Info {
 
 	public function shortcode_chart_mileage( $atts ) {
 		$query_args = array(
-			'post_type'      => $this->cpt_fillup,
+			'post_type'      => self::CPT_FILLUP,
 			'posts_per_page' => -1,
 			'meta_query'     => array(
 				// Exclude zero mileage entries
 				array(
-					'key'     => $this->meta_odometer,
+					'key'     => self::META_ODOMETER,
 					'value'   => 0,
 					'type'    => 'numeric',
 					'compare' => '>'
@@ -1803,7 +1942,7 @@ class Vehicle_Info {
 		);
 
 		if ( ! empty( $atts['vehicle'] ) ) {
-			if ( ! $vehicle = get_term_by( 'slug', $atts['vehicle'], $this->tax_vehicle ) ) {
+			if ( ! $vehicle = get_term_by( 'slug', $atts['vehicle'], self::TAX_VEHICLE ) ) {
 				return $this->return_error( sprintf( __( 'No vehicle with the slug %s could be found.', 'vehicle-info' ), '<code>' . esc_html( $atts['vehicle'] ) . '</code>' ) );
 			}
 
@@ -1818,7 +1957,7 @@ class Vehicle_Info {
 		if ( ! empty( $atts['vehicle'] ) ) {
 			$vehicles[] = $vehicle;
 		} else {
-			$vehicles = $this->get_terms_for_posts( $fillups->posts, $this->tax_vehicle );
+			$vehicles = $this->get_terms_for_posts( $fillups->posts, self::TAX_VEHICLE );
 		}
 
 		$columns = array(
@@ -1838,7 +1977,7 @@ class Vehicle_Info {
 
 		$rows = array();
 		foreach ( $fillups->posts as $key => $fillup ) {
-			if ( ! $fillup_vehicle = $this->get_first_assigned_term( $fillup, $this->tax_vehicle ) )
+			if ( ! $fillup_vehicle = $this->get_first_assigned_term( $fillup, self::TAX_VEHICLE ) )
 				continue;
 
 			$data = array(
@@ -1878,18 +2017,18 @@ class Vehicle_Info {
 		if ( ! empty( $atts['type'] ) )
 			$args['slug'] = $atts['type'];
 
-		$fuel_types = get_terms( $this->tax_fuel_type, $args );
+		$fuel_types = get_terms( self::TAX_FUEL_TYPE, $args );
 
 		if ( ! $fuel_types || is_wp_error( $fuel_types ) )
 			return $this->return_error( __( 'No fuel price results were found.', 'vehicle-info' ) );
 
 		$query_args = array(
-			'post_type' => $this->cpt_fillup,
+			'post_type' => self::CPT_FILLUP,
 			'posts_per_page' => -1,
 			'meta_query' => array(
 				// Exclude zero price entries
 				array(
-					'key'     => $this->meta_fuelunitprice,
+					'key'     => self::META_FUELUNITPRICE,
 					'value'   => 0,
 					'type'    => 'numeric',
 					'compare' => '>'
@@ -1902,7 +2041,7 @@ class Vehicle_Info {
 		if ( ! empty( $atts['type'] ) ) {
 			$query_args['tax_query'] = array(
 				array(
-					'taxonomy' => $this->tax_fuel_type,
+					'taxonomy' => self::TAX_FUEL_TYPE,
 					'field'    => 'slug',
 					'terms'    => array( $atts['type'] ),
 				),
@@ -1931,7 +2070,7 @@ class Vehicle_Info {
 
 		$rows = array();
 		foreach ( $fillups->posts as $fillup ) {
-			if ( ! $fillup_fuel_type = $this->get_first_assigned_term( $fillup, $this->tax_fuel_type ) )
+			if ( ! $fillup_fuel_type = $this->get_first_assigned_term( $fillup, self::TAX_FUEL_TYPE ) )
 				continue;
 
 			$data = array(
@@ -1943,7 +2082,7 @@ class Vehicle_Info {
 
 			foreach ( $fuel_types as $fuel_type ) {
 				if ( $fuel_type->term_id === $fillup_fuel_type->term_id ) {
-					$unit_price = get_post_meta( $fillup->ID, $this->meta_fuelunitprice, true );
+					$unit_price = get_post_meta( $fillup->ID, self::META_FUELUNITPRICE, true );
 					$data[] = array(
 						'v' => (float) $unit_price,
 						'f' => sprintf( __( '%1$s per %2$s', 'fuel unit price', 'vehicle-info' ), $this->add_currency_symbol( $unit_price ), $this->labels['volume_singular'] ),
