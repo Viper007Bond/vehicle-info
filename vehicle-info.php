@@ -1153,7 +1153,7 @@ class Vehicle_Info {
 
 			if ( $results = $this->do_import( $_POST['vehicleinfo_import_attachment_id'] ) ) {
 				if ( $results['skipped'] || $results['error'] ) {
-					$message = sprintf( __( 'Successfully imported %1$s entries, skipped %2$s existing entries, and encounted %3$s errors.', 'vehicle-info' ), $results['imported'], $results['skipped'], $results['error'] );
+					$message = sprintf( __( 'Successfully imported %1$s entries, skipped %2$s existing entries, and encountered %3$s errors.', 'vehicle-info' ), $results['imported'], $results['skipped'], $results['error'] );
 				} else {
 					$message = sprintf( _n( 'Successfully imported 1 entry.', 'Successfully imported %s entries.', $results['imported'], 'vehicle-info' ), $results['imported'] );
 				}
