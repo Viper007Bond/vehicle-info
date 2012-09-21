@@ -1084,7 +1084,7 @@ class Vehicle_Info {
 			default:
 				// Yeah, this is badass. I know. :D
 				$terms = get_terms( $args['taxonomy'], array(
-					'search'     => esc_html( $args['value'] ), // Term names are HTML escaped
+					'search'     => $args['value'],
 					'hide_empty' => false,
 					'orderby'    => 'count',
 					'order'      => 'DESC',
@@ -1221,13 +1221,21 @@ class Vehicle_Info {
 		// Process each entry
 		foreach ( $import_data as $entry ) {
 
+			$post_data = array(
+				'post_date'   => $this->get_datetime( $entry ),
+				'post_status' => 'publish',
+			);
+
+			$post_meta = array();
+
+
 			switch ( $entry['Type'] ) {
 				case 'Gas':
-					$post_type = self::CPT_FILLUP;
+					$post_data['post_type'] = self::CPT_FILLUP;
 					break;
 
 				case 'Service':
-					$post_type = self::CPT_SERVICE;
+					$post_data['post_type'] = self::CPT_SERVICE;
 					break;
 
 				// Unknown type, skip it
@@ -1236,35 +1244,6 @@ class Vehicle_Info {
 					continue 2;
 			}
 
-			$post_date = $this->get_datetime( $entry );
-			$post_timestamp = strtotime( $post_date ); // Yeah, I know (back and forth)
-
-			wp_die( 'fix duplicate detection' );
-
-			// Skip already imported entries
-			// TODO: Multiple items per.... hmm
-			$existing_post = new WP_Query( array(
-				'post_type'      => $post_type,
-				'posts_per_page' => 1,
-
-				'year'           => date( 'Y', $post_timestamp ),
-				'monthnum'       => date( 'm', $post_timestamp ),
-				'day'            => date( 'd', $post_timestamp ),
-				'hour'           => date( 'H', $post_timestamp ),
-				'minute'         => date( 'i', $post_timestamp ),
-			) );
-			if ( $existing_post->have_posts() ) {
-				$results['skipped']++;
-				continue;
-			}
-
-
-
-			$post_data = array(
-				'post_date'   => $post_date,
-				'post_status' => 'publish',
-				'post_type'   => $post_type,
-			);
 
 			if ( ! empty( $entry['Notes'] ) )
 				$post_data['post_content'] = $entry['Notes'];
@@ -1314,33 +1293,69 @@ class Vehicle_Info {
 					}
 				}
 
-
-				$post_ID = wp_insert_post( $post_data );
-
-
 				if ( ! empty( $entry['Cost/Gallon'] ) )
-					update_post_meta( $post_ID, self::META_FUELUNITPRICE, $this->float_nothousands( $entry['Cost/Gallon'] ) );
+					$post_meta[self::META_FUELUNITPRICE] = $this->float_nothousands( $entry['Cost/Gallon'] );
 				elseif ( ! empty( $entry['Cost/Liter'] ) )
-					update_post_meta( $post_ID, self::META_FUELUNITPRICE, $this->float_nothousands( $entry['Cost/Liter'] ) );
+					$post_meta[self::META_FUELUNITPRICE] = $this->float_nothousands( $entry['Cost/Liter'] );
 
 				if ( ! empty( $entry['Gallons'] ) )
-					update_post_meta( $post_ID, self::META_FUELUNITS, $this->float_nothousands( $entry['Gallons'] ) );
+					$post_meta[self::META_FUELUNITS] = $this->float_nothousands( $entry['Gallons'] );
 				elseif ( ! empty( $entry['Liters'] ) )
-					update_post_meta( $post_ID, self::META_FUELUNITS, $this->float_nothousands( $entry['Liters'] ) );
+					$post_meta[self::META_FUELUNITS] = $this->float_nothousands( $entry['Liters'] );
 			}
 
 			elseif ( 'Service' == $entry['Type'] ) {
 
 				$post_data['post_title'] = 'Service';
 
-				$post_ID = wp_insert_post( $post_data );
 			}
 
 			if ( ! empty( $entry['Odometer'] ) )
-				update_post_meta( $post_ID, self::META_ODOMETER, $this->human_to_float( $entry['Odometer'] ) );
+				$post_meta[self::META_ODOMETER] = $this->human_to_float( $entry['Odometer'] );
 
 			if ( ! empty( $entry['Total Cost'] ) )
-				update_post_meta( $post_ID, self::META_COST, $this->float_nothousands( $entry['Total Cost'] ) );
+				$post_meta[self::META_COST] = $this->float_nothousands( $entry['Total Cost'] );
+
+
+
+			# Attempt to avoid duplicating previously imported entries
+
+			$post_timestamp = strtotime( $post_data['post_date'] );
+
+			$existing_post_args = array(
+				'post_type'      => $post_data['post_type'],
+				'posts_per_page' => 1,
+
+				'year'           => date( 'Y', $post_timestamp ),
+				'monthnum'       => date( 'm', $post_timestamp ),
+				'day'            => date( 'd', $post_timestamp ),
+				'hour'           => date( 'H', $post_timestamp ),
+				'minute'         => date( 'i', $post_timestamp ),
+
+				'meta_query'     => array(),
+			);
+
+			foreach ( $post_meta as $meta_key => $meta_value ) {
+				$existing_post_args['meta_query'][] = array(
+					'key'   => $meta_key,
+					'value' => $meta_value,
+				);
+			}
+
+			$existing_post = new WP_Query( $existing_post_args );
+
+			if ( $existing_post->have_posts() ) {
+				$results['skipped']++;
+				continue;
+			}
+
+
+			// Insert the new entry
+			$post_ID = wp_insert_post( $post_data );
+			foreach ( $post_meta as $meta_key => $meta_value ) {
+				update_post_meta( $post_ID, $meta_key, $meta_value );
+			}
+
 
 			$results['imported']++;
 		}
