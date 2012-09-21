@@ -2272,6 +2272,22 @@ class Vehicle_Info {
 	}
 }
 
-$Vehicle_Info = new Vehicle_Info();
+
+/**
+ * The main function responsible for returning the one true Vehicle_Info instance
+ * to functions everywhere.
+ *
+ * Use this function like you would a global variable, except without needing
+ * to declare the global.
+ *
+ * Example: <?php $Vehicle_Info = Vehicle_Info(); ?>
+ *
+ * @return The one true Vehicle_Info Instance
+ */
+function Vehicle_Info() {
+	return Vehicle_Info::instance();
+}
+
+add_action( 'plugins_loaded', 'Vehicle_Info' );
 
 ?>
