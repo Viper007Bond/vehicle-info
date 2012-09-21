@@ -1765,6 +1765,17 @@ class Vehicle_Info {
 		return array_shift( $terms );
 	}
 
+	// Requires WP 3.5+
+	public function build_date_query_args( $query_args, $atts ) {
+		if ( ! empty( $atts['after'] ) )
+			$query_args['date_query'][] = array( 'after' => $atts['after'] );
+
+		if ( ! empty( $atts['before'] ) )
+			$query_args['date_query'][] = array( 'before' => $atts['before'] );
+
+		return $query_args;
+	}
+
 	public function shortcode_list_fillups( $atts ) {
 		$atts = shortcode_atts( array(
 			'vehicle' => null,
@@ -1876,6 +1887,8 @@ class Vehicle_Info {
 			$query_args['tax_query'] = $this->get_vehicle_tax_query( $atts['vehicle'] );
 		}
 
+		$query_args = $this->build_date_query_args( $query_args, $atts );
+
 		$entries = new WP_Query( $query_args );
 
 		if ( ! $entries->have_posts() )
@@ -1960,6 +1973,8 @@ class Vehicle_Info {
 
 			$query_args['tax_query'] = $this->get_vehicle_tax_query( $atts['vehicle'] );
 		}
+
+		$query_args = $this->build_date_query_args( $query_args, $atts );
 
 		$fillups = new WP_Query( $query_args );
 
@@ -2059,6 +2074,8 @@ class Vehicle_Info {
 				),
 			);
 		}
+
+		$query_args = $this->build_date_query_args( $query_args, $atts );
 
 		$fillups = new WP_Query( $query_args );
 
