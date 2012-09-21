@@ -1066,6 +1066,7 @@ class Vehicle_Info {
 						break;
 					case '90+':
 					case '91':
+					case '92':
 						$slug = 'premium';
 						break;
 					case 'Diesel':
