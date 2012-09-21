@@ -226,6 +226,8 @@ class Vehicle_Info {
 		add_action( 'wp_enqueue_scripts', array( &$this, 'register_scripts' ) );
 
 		//add_action( 'admin_init', array( &$this, 'create_default_terms' ) );
+
+		add_action( 'admin_init', array( &$this, 'make_sure_fillup_terms_exist' ) );
 		add_action( 'admin_init', array( &$this, 'register_settings' ) );
 		add_action( 'admin_menu', array( &$this, 'register_settings_page' ) );
 
@@ -327,20 +329,6 @@ class Vehicle_Info {
 			'hierarchical' => true,
 		) );
 
-		// Make sure the fillup types exist
-		$fillup_types = array(
-			'full'    => __( 'Full',    'vehicle-info' ),
-			'partial' => __( 'Partial', 'vehicle-info' ),
-			'reset'   => __( 'Reset',   'vehicle-info' ),
-		);
-		foreach ( $fillup_types as $slug => $name ) {
-			if ( ! get_term_by( 'slug', $slug, self::TAX_FILLUP_TYPE ) ) {
-				wp_insert_term( $name, self::TAX_FILLUP_TYPE, array(
-					'slug' => $slug,
-				) );
-			}
-		}
-
 		$this->settings = wp_parse_args( (array) get_option( self::OPTION_NAME ), array(
 			'currency_symbol'           => _x( '$', 'your currency symbol', 'vehicle-info' ),
 			/* translators: This must be either exactly "before" or "after", untranslated and nothing else! */
@@ -380,8 +368,19 @@ class Vehicle_Info {
 		}
 	}
 
-	public function register_scripts() {
-		wp_register_script( 'google-jsapi', 'https://www.google.com/jsapi', array(), false, true );
+	public function make_sure_fillup_terms_exist() {
+		$fillup_types = array(
+			'full'    => __( 'Full',    'vehicle-info' ),
+			'partial' => __( 'Partial', 'vehicle-info' ),
+			'reset'   => __( 'Reset',   'vehicle-info' ),
+		);
+		foreach ( $fillup_types as $slug => $name ) {
+			if ( ! get_term_by( 'slug', $slug, self::TAX_FILLUP_TYPE ) ) {
+				wp_insert_term( $name, self::TAX_FILLUP_TYPE, array(
+					'slug' => $slug,
+				) );
+			}
+		}
 	}
 
 	public function create_default_terms() {
@@ -391,13 +390,6 @@ class Vehicle_Info {
 				__( 'Plus',          'vehicle-info' ),
 				__( 'Premium',       'vehicle-info' ),
 				__( 'Diesel',        'vehicle-info' ),
-			),
-			self::TAX_FUEL_BRAND => array(
-				/*
-				__( 'Shell',         'vehicle-info' ),
-				__( 'Chevron',       'vehicle-info' ),
-				__( 'Arco',          'vehicle-info' ),
-				*/
 			),
 			self::TAX_PAYMENT_TYPE => array(
 				__( 'Cash',          'vehicle-info' ),
@@ -419,6 +411,10 @@ class Vehicle_Info {
 				wp_insert_term( $term, $taxonomy );
 			}
 		}
+	}
+
+	public function register_scripts() {
+		wp_register_script( 'google-jsapi', 'https://www.google.com/jsapi', array(), false, true );
 	}
 
 	public function remove_default_taxonomy_meta_boxes() {
