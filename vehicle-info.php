@@ -1201,6 +1201,9 @@ class Vehicle_Info {
 
 	public function do_import( $attachment_id ) {
 
+		if ( ! defined( 'WP_IMPORTING' ) )
+			define( 'WP_IMPORTING', true );
+
 		$file = get_attached_file( $attachment_id );
 
 		if ( ! $file  || ! is_file( $file ) )
