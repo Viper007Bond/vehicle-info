@@ -513,7 +513,7 @@ class Vehicle_Info {
 		<script type="text/javascript">
 			jQuery(document).ready(function($){
 				$( "#vehicleinfo_fuelunitprice, #vehicleinfo_fuelunits" ).change( function() {
-					if ( self::META_FUELUNITPRICE == $( this ).prop( "id" ) ) {
+					if ( '<?php echo esc_js( self::META_FUELUNITPRICE ); ?>' == $( this ).prop( "id" ) ) {
 						var unitprice = $( this ).val();
 						var units     = $( "#vehicleinfo_fuelunits" ).val();
 					} else {
@@ -1200,9 +1200,6 @@ class Vehicle_Info {
 	}
 
 	public function do_import( $attachment_id ) {
-
-		if ( ! defined( 'WP_IMPORTING' ) )
-			define( 'WP_IMPORTING', true );
 
 		$file = get_attached_file( $attachment_id );
 
@@ -2250,7 +2247,7 @@ class Vehicle_Info {
 
 		$this->charts[] = $chart;
 
-		$style = 'width:' . intval( $atts['width'] ) . 'px;height:' . intval( $atts['height'] ) . 'px;';
+		$style = 'width:100%;max-width:' . intval( $atts['width'] ) . 'px;height:' . intval( $atts['height'] ) . 'px;';
 
 		switch ( $atts['align'] ) {
 			case 'left':
@@ -2264,7 +2261,7 @@ class Vehicle_Info {
 				break;
 		}
 
-		return '<div id="' . esc_attr( $chart['id'] ) . '" style="' . esc_attr( $style ) . '"></div>';
+		return '<div id="' . esc_attr( $chart['id'] ) . '" style="' . esc_attr( $style ) . '"><em>Graph loading...</em></div>';
 	}
 
 	public function google_jsapi_draw_charts() {
